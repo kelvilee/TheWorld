@@ -7,8 +7,10 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/app/src/debug/res/values/google_maps_api.xml
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
+*.idea
