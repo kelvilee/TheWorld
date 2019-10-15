@@ -3,8 +3,10 @@ package com.example.theworld;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -78,5 +80,10 @@ public class MainActivity extends AppCompatActivity {
         }
         return json;
 
+    }
+
+    public void goToMap(View v) {
+        Intent mapIntent = new Intent(this, MapsActivity.class);
+        startActivity(mapIntent);
     }
 }

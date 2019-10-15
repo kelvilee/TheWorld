@@ -7,6 +7,13 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
+    <Button
+        android:id="@+id/map_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/map_button_label"
+        android:onClick="goToMap"/>
+
     <TextView
         android:id="@+id/testView"
         android:layout_width="wrap_content"
