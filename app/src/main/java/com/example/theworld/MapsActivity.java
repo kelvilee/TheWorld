@@ -75,7 +75,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             JSONArray result;
             for(int i = 0; i < litterBinsArray.length(); i++) {
                 result = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
-                UTM2Deg degs = new UTM2Deg(result.getDouble(0) + " " + result.getDouble(1));
+                UTM2Deg degs = new UTM2Deg("10 N " + result.getDouble(0) + " " + result.getDouble(1));
                 locations.add(new LatLng(degs.latitude, degs.longitude));
             }
         } catch (final JSONException e) {
@@ -110,10 +110,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //LatLng sydney = new LatLng(-34, 151);
         for(int i = 0; i < locations.size(); i++) {
 
-            mMap.addMarker(new MarkerOptions().position(locations.get(i)).title("Marker"));
+            mMap.addMarker(new MarkerOptions().position(locations.get(i)).title(locations.get(i).toString()));
         }
         //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(49, -122)));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(49.1, -122.8), 12.0f));
     }
 
     private String loadJSONFromAsset(Context context) {
