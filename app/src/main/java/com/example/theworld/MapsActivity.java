@@ -20,6 +20,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -33,6 +34,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -40,9 +42,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String TAG = MainActivity.class.getSimpleName();
     private GoogleMap mMap;
-    private ArrayList<LatLng> locations = new ArrayList();
-    private LocationManager locationManager; // where am i?
-    private LocationListener locationListener; // where am i?
+    private ArrayList<LatLng> locations = new ArrayList<>();
+    private ArrayList<String> opLocations = new ArrayList<>(); //TODO: maybe use a different data structure to hold information
+    private LocationManager locationManager;
+    private LocationListener locationListener;
     private ArrayList<Marker> markerList = new ArrayList<>();
 
     @Override
@@ -54,14 +57,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        // adds lat/long for all points within JSON
+
         try {
             JSONObject obj = new JSONObject(loadJSONFromAsset(getApplicationContext()));
             JSONArray litterBinsArray = obj.getJSONArray("features");
-            JSONArray result;
+            JSONArray coordinate;
+
+            // adds operating location
+            for(int i = 0; i < litterBinsArray.length(); i++) {
+                String location = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("OPERATING_LOCATION");
+                opLocations.add(location);
+            }
+
+            // adds lat/long for all points within JSON
             for (int i = 0; i < litterBinsArray.length(); i++) {
-                result = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
-                UTM2Deg degs = new UTM2Deg("10 N " + result.getDouble(0) + " " + result.getDouble(1));
+                coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
+                UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
                 locations.add(new LatLng(degs.latitude, degs.longitude));
             }
         } catch (final JSONException e) {
@@ -119,26 +130,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
-        // Add a marker in Sydney and move the camera
-        //LatLng sydney = new LatLng(-34, 151);
         for (int i = 0; i < locations.size(); i++) {
-            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).visible(false).title(locations.get(i).toString()));
+            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(opLocations.get(i)));
             markerList.add(marker);
         }
         LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(1000).strokeColor(Color.rgb(0, 136, 255)));
+        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(300).strokeColor(Color.rgb(0, 136, 255)));
         for (Marker marker : markerList) {
-            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 1000) {
+            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 300) {
                 marker.setVisible(true);
             }
         }
-        //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(49.1, -122.8), 12.0f));
     }
 
+    /**
+     * Helper method to load JSON data from assets folder
+     * @param context context
+     * @return JSON as a String
+     */
     private String loadJSONFromAsset(Context context) {
 
-        String json = null;
+        String json;
 
         try {
             InputStream is = context.getAssets().open("litter_containers.json");
@@ -151,7 +163,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             is.close();
 
-            json = new String(buffer, "UTF-8");
+            json = new String(buffer, StandardCharsets.UTF_8);
 
 
         } catch (IOException ex) {
@@ -168,26 +180,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * @param location location to center on
      */
     private void addMarker2Map(Location location) {
-
-        String msg = String.format("Current Location: %4.3f Lat & %4.3f Long.",
-                location.getLatitude(),
-                location.getLongitude());
-
-
         LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
 
-        mMap.addMarker(new MarkerOptions().position(latlng).title(msg));
+        mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
 
-        float zoomLevel = 15.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
+        float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
 
     /**
      * This method requests permission from the user using the permissions manager
      *
-     * @param requestCode
-     * @param permissions
-     * @param grantResults
+     * @param requestCode requestCode
+     * @param permissions permissions
+     * @param grantResults grantResults
      */
 
     @Override
@@ -204,10 +210,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    /**
+     * This is a helper class that converts UTM coordinates to LatLong
+     */
     private class UTM2Deg {
         double latitude;
         double longitude;
 
+        /**
+         * Helper Method to create a latitude and longitude from UTM coordinates
+         * @param UTM the UTM String
+         */
         private UTM2Deg(String UTM) {
             String[] parts = UTM.split(" ");
             int Zone = Integer.parseInt(parts[0]);
