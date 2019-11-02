@@ -3,6 +3,7 @@ package com.example.theworld;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -19,8 +20,12 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,8 +41,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String TAG = MainActivity.class.getSimpleName();
     private GoogleMap mMap;
     private ArrayList<LatLng> locations = new ArrayList();
-    private LocationManager locationManager;
-    private LocationListener locationListener;
+    private LocationManager locationManager; // where am i?
+    private LocationListener locationListener; // where am i?
+    private ArrayList<Marker> markerList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +78,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -90,7 +95,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                addMarker2Map(location);
+//                addMarker2Map(location);
             }
 
             @Override
@@ -106,32 +111,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         };
 
+        Location lastKnownLocation = null;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-            Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             addMarker2Map(lastKnownLocation);
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
+        // Add a marker in Sydney and move the camera
+        //LatLng sydney = new LatLng(-34, 151);
         for (int i = 0; i < locations.size(); i++) {
-            //mMap.addMarker(new MarkerOptions().position(locations.get(i)).title(locations.get(i).toString()));
+            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).visible(false).title(locations.get(i).toString()));
+            markerList.add(marker);
+        }
+        LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(1000).strokeColor(Color.rgb(0, 136, 255)));
+        for (Marker marker : markerList) {
+            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 1000) {
+                marker.setVisible(true);
+            }
         }
         //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         //mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(49.1, -122.8), 12.0f));
-    }
-
-    private void addMarker2Map(Location location) { // give this method a location and it puts the marker somewhere
-
-        String msg = String.format("Current Location: %4.3f Lat & %4.3f Long.",
-                location.getLatitude(),
-                location.getLongitude());
-
-        LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
-
-        mMap.addMarker(new MarkerOptions().position(latlng).title(msg));
-
-        float zoomLevel = 12.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
 
     private String loadJSONFromAsset(Context context) {
@@ -160,7 +162,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return json;
     }
 
-    // This method requests permission from the user using the permissions manager
+    /**
+     * Adds marker to map and centers on the location
+     *
+     * @param location location to center on
+     */
+    private void addMarker2Map(Location location) {
+
+        String msg = String.format("Current Location: %4.3f Lat & %4.3f Long.",
+                location.getLatitude(),
+                location.getLongitude());
+
+
+        LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
+
+        mMap.addMarker(new MarkerOptions().position(latlng).title(msg));
+
+        float zoomLevel = 15.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
+    }
+
+    /**
+     * This method requests permission from the user using the permissions manager
+     *
+     * @param requestCode
+     * @param permissions
+     * @param grantResults
+     */
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -176,7 +205,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private class UTM2Deg {
-
         double latitude;
         double longitude;
 
