@@ -1,7 +1,5 @@
 package com.example.theworld;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -9,6 +7,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -32,12 +32,12 @@ public class MainActivity extends AppCompatActivity {
             JSONObject obj = new JSONObject(loadJSONFromAsset(getApplicationContext()));
             JSONArray litterBinsArray = obj.getJSONArray("features");
             String result = "";
-            for(int i = 0; i < litterBinsArray.length(); i++) {
+            for (int i = 0; i < litterBinsArray.length(); i++) {
                 result = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("OPERATING_LOCATION");
                 opLocations.add(result);
             }
             String locations = "";
-            for(int i = 0; i < opLocations.size(); i++) {
+            for (int i = 0; i < opLocations.size(); i++) {
                 locations += opLocations.get(i) + "\n\n";
             }
             TextView testView = findViewById(R.id.testView);
