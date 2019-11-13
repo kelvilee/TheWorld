@@ -29,6 +29,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -83,6 +84,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        // litter_containers.json
         try {
             JSONObject obj = new JSONObject(loadJSONFromAsset(getApplicationContext()));
             JSONArray litterBinsArray = obj.getJSONArray("features");
@@ -201,14 +203,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
-
+        // add garbage can markers
         for (int i = 0; i < locations.size(); i++) {
             Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(facilityIds.get(i)));
             String snippet = "Rating: ";
             marker.setSnippet(snippet);
             markerList.add(marker);
         }
-
         LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
         Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(600).strokeColor(Color.rgb(0, 136, 255)));
         for (Marker marker : markerList) {
@@ -240,6 +241,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         try {
             InputStream is = context.getAssets().open("litter_containers.json");
+
+            int size = is.available();
+
+            byte[] buffer = new byte[size];
+
+            is.read(buffer);
+
+            is.close();
+
+            json = new String(buffer, StandardCharsets.UTF_8);
+
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return null;
+        }
+
+        return json;
+    }
+
+    /**
+     * Helper method to load JSON data from assets folder
+     * @param context context
+     * @return JSON as a String
+     */
+    private String loadJSONFromPlacesAsset(Context context) {
+
+        String json;
+
+        try {
+            InputStream is = context.getAssets().open("places_of_interest.json");
 
             int size = is.available();
 
