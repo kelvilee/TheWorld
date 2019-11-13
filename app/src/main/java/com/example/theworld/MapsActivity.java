@@ -8,10 +8,17 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -26,6 +33,15 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
@@ -36,6 +52,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -47,16 +64,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LocationManager locationManager;
     private LocationListener locationListener;
     private ArrayList<Marker> markerList = new ArrayList<>();
+    private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
+    private DatabaseReference ratingsDatabase;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ratingsDatabase = FirebaseDatabase.getInstance().getReference("trashcans");
+
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-
 
         try {
             JSONObject obj = new JSONObject(loadJSONFromAsset(getApplicationContext()));
@@ -89,6 +109,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        ratingsDatabase.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                ratingsMap.clear();
+                for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
+                    TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
+                    System.out.println(ratingObject.getRating());
+                    ratingsMap.put(ratingObject.getLocation(), ratingObject);
+                }
+
+                for(Marker marker : markerList) {
+                    if(ratingsMap.containsKey(marker.getTitle())) {
+                        int rating = ratingsMap.get(marker.getTitle()).getRating();
+                        marker.setSnippet("Rating: " + rating);
+                    } else {
+                        marker.setSnippet("Rating: N/A");
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) { }
+        });
+    }
+    
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -101,6 +149,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setInfoWindowAdapter(new TrashCanInfoWindowAdapter());
 
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         locationListener = new LocationListener() {
@@ -130,10 +179,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
+
         for (int i = 0; i < locations.size(); i++) {
             Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(opLocations.get(i)));
+            String snippet = "Rating: ";
+            marker.setSnippet(snippet);
             markerList.add(marker);
         }
+
         LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
         Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(300).strokeColor(Color.rgb(0, 136, 255)));
         for (Marker marker : markerList) {
@@ -141,6 +194,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 marker.setVisible(true);
             }
         }
+
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                showUpdateDialog(marker.getTitle());
+                return false;
+            }
+        });
     }
 
     /**
@@ -210,6 +271,79 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    private void showUpdateDialog(final String location) {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+
+        LayoutInflater inflater = getLayoutInflater();
+
+        final View dialogView = inflater.inflate(R.layout.rating_dialog, null);
+        dialogBuilder.setView(dialogView);
+
+        dialogBuilder.setTitle("Rate " + location);
+
+        final AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
+
+        final Button btnUpdate = dialogView.findViewById(R.id.btnUpdate);
+
+        btnUpdate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                updateRating(location, 1);
+
+                alertDialog.dismiss();
+            }
+        });
+
+        final Button btnDelete = dialogView.findViewById(R.id.btnDelete);
+        btnDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                updateRating(location, -1);
+
+                alertDialog.dismiss();
+            }
+        });
+    }
+
+    private void updateRating(String location, int modifier) {
+        TrashCanRating newRating;
+        DatabaseReference dbRef;
+
+        if(ratingsMap.containsKey(location)) {
+            TrashCanRating curRating = ratingsMap.get(location);
+            dbRef = ratingsDatabase.child(curRating.getId());
+
+            newRating = new TrashCanRating(curRating.getId(), location, curRating.getRating() + modifier);
+
+        } else {
+            String id = ratingsDatabase.push().getKey();
+            dbRef = ratingsDatabase.child(id);
+
+            newRating = new TrashCanRating(id, location, modifier);
+        }
+
+        Task setValueTask = dbRef.setValue(newRating);
+
+
+        setValueTask.addOnSuccessListener(new OnSuccessListener() {
+            @Override
+            public void onSuccess(Object o) {
+                Toast.makeText(MapsActivity.this,
+                        "Rating Updated.",Toast.LENGTH_LONG).show();
+            }
+        });
+
+        setValueTask.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Toast.makeText(MapsActivity.this,
+                        "Something went wrong.\n" + e.toString(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     /**
      * This is a helper class that converts UTM coordinates to LatLong
      */
@@ -243,6 +377,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             longitude = Math.atan((Math.exp((Easting - 500000) / (0.9996 * 6399593.625 / Math.sqrt((1 + 0.006739496742 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)))) * (1 - 0.006739496742 * Math.pow((Easting - 500000) / (0.9996 * 6399593.625 / Math.sqrt((1 + 0.006739496742 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)))), 2) / 2 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2) / 3)) - Math.exp(-(Easting - 500000) / (0.9996 * 6399593.625 / Math.sqrt((1 + 0.006739496742 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)))) * (1 - 0.006739496742 * Math.pow((Easting - 500000) / (0.9996 * 6399593.625 / Math.sqrt((1 + 0.006739496742 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)))), 2) / 2 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2) / 3))) / 2 / Math.cos((north - 0.9996 * 6399593.625 * (north / 6366197.724 / 0.9996 - 0.006739496742 * 3 / 4 * (north / 6366197.724 / 0.9996 + Math.sin(2 * north / 6366197.724 / 0.9996) / 2) + Math.pow(0.006739496742 * 3 / 4, 2) * 5 / 3 * (3 * (north / 6366197.724 / 0.9996 + Math.sin(2 * north / 6366197.724 / 0.9996) / 2) + Math.sin(2 * north / 6366197.724 / 0.9996) * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)) / 4 - Math.pow(0.006739496742 * 3 / 4, 3) * 35 / 27 * (5 * (3 * (north / 6366197.724 / 0.9996 + Math.sin(2 * north / 6366197.724 / 0.9996) / 2) + Math.sin(2 * north / 6366197.724 / 0.9996) * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)) / 4 + Math.sin(2 * north / 6366197.724 / 0.9996) * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2) * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)) / 3)) / (0.9996 * 6399593.625 / Math.sqrt((1 + 0.006739496742 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)))) * (1 - 0.006739496742 * Math.pow((Easting - 500000) / (0.9996 * 6399593.625 / Math.sqrt((1 + 0.006739496742 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)))), 2) / 2 * Math.pow(Math.cos(north / 6366197.724 / 0.9996), 2)) + north / 6366197.724 / 0.9996)) * 180 / Math.PI + Zone * 6 - 183;
             longitude = Math.round(longitude * 10000000);
             longitude = longitude / 10000000;
+        }
+    }
+
+    private class TrashCanInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+
+        // These are both viewgroups containing an ImageView with id "badge" and two TextViews with id
+        // "title" and "snippet".
+
+        private final View mContents;
+
+        TrashCanInfoWindowAdapter() {
+            mContents = getLayoutInflater().inflate(R.layout.trash_info_contents, null);
+        }
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+            return null;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+
+            render(marker, mContents);
+            return mContents;
+        }
+
+        private void render(Marker marker, View view) {
+            String title = marker.getTitle();
+            TextView titleUi = view.findViewById(R.id.title);
+            if (title != null) {
+                // Spannable string allows us to edit the formatting of the text.
+                // SpannableString titleText = new SpannableString(title);
+                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
+                titleUi.setText(title);
+            } else {
+                titleUi.setText("");
+            }
+
+            String snippet = marker.getSnippet();
+            TextView snippetUi = view.findViewById(R.id.snippet);
+            if (snippet != null) {
+                //SpannableString snippetText = new SpannableString(snippet);
+                //snippetText.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, 10, 0);
+                //snippetText.setSpan(new ForegroundColorSpan(Color.BLUE), 12, snippet.length(), 0);
+                snippetUi.setText(snippet);
+            } else {
+                snippetUi.setText("");
+            }
         }
     }
 }
