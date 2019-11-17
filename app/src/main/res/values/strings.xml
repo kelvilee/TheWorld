@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">TrashLink</string>
     <string name="title_activity_map">TrashCanMap</string>
-    <string name="map_button_label">Go To Map</string>
+    <string name="map_button_label">Find Bin</string>
 </resources>
