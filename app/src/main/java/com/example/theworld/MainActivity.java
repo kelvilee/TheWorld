@@ -116,4 +116,9 @@ public class MainActivity extends AppCompatActivity {
         Intent mapIntent = new Intent(this, MapsActivity.class);
         startActivity(mapIntent);
     }
+
+    public void goToRecyclingMap(View v) {
+        Intent intent = new Intent(this, RecyclingMapActivity.class);
+        startActivity(intent);
+    }
 }

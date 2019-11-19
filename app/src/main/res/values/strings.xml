@@ -3,4 +3,5 @@
     <string name="title_activity_map">TrashCanMap</string>
     <string name="map_button_label">Find Bin</string>
     <string name="title_activity_recycling_map">Map</string>
+    <string name="recycling_centers">Recycling Centers</string>
 </resources>
