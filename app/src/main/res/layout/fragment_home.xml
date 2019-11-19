@@ -11,7 +11,17 @@
         android:onClick="goToMap"
         style="@style/Widget.AppCompat.Button.Colored"
         android:padding="30sp"
-        android:layout_centerInParent="true"/>
+        android:layout_above="@id/recycling_button"
+        android:layout_centerHorizontal="true"/>
 
+    <Button
+        android:id="@+id/recycling_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/recycling_centers"
+        android:onClick="goToRecyclingMap"
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:padding="30sp"
+        android:layout_centerInParent="true"/>
 
 </RelativeLayout>

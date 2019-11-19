@@ -261,36 +261,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return json;
     }
 
-    /**
-     * Helper method to load JSON data from assets folder
-     * @param context context
-     * @return JSON as a String
-     */
-    private String loadJSONFromPlacesAsset(Context context) {
-
-        String json;
-
-        try {
-            InputStream is = context.getAssets().open("places_of_interest.json");
-
-            int size = is.available();
-
-            byte[] buffer = new byte[size];
-
-            is.read(buffer);
-
-            is.close();
-
-            json = new String(buffer, StandardCharsets.UTF_8);
-
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
-        }
-
-        return json;
-    }
 
     /**
      * Adds marker to map and centers on the location
@@ -301,7 +271,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
         locationMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
 
-        float zoomLevel = 18.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
+        float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
 
