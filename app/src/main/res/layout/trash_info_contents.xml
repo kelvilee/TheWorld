@@ -16,6 +16,15 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="#ff7f7f7f"
+        android:textSize="14dp" />
+
+    <TextView
         android:id="@+id/snippet"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

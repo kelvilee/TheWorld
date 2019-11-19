@@ -51,6 +51,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,12 +62,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String TAG = MainActivity.class.getSimpleName();
     private GoogleMap mMap;
     private ArrayList<LatLng> locations = new ArrayList<>();
-    private ArrayList<String> opLocations = new ArrayList<>(); //TODO: maybe use a different data structure to hold information
+    private HashMap<String, String> opLocations = new HashMap<>(); //TODO: maybe use a different data structure to hold information
+    private ArrayList<String> facilityIds = new ArrayList<>();
+    private HashMap<String, String> containerType = new HashMap<>();
     private LocationManager locationManager;
     private LocationListener locationListener;
     private ArrayList<Marker> markerList = new ArrayList<>();
     private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private DatabaseReference ratingsDatabase;
+    private Marker locationMarker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,7 +91,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // adds operating location
             for(int i = 0; i < litterBinsArray.length(); i++) {
                 String location = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("OPERATING_LOCATION");
-                opLocations.add(location);
+                String id = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("FACILITYID");
+                String type = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("CONTAINER_TYPE2");
+                //System.out.println(location);
+                if(location.equals("null")) {
+                    location = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("DESCRIPTION");
+                    //System.out.println(location);
+                    if(location.equals("null") || location.equals("RDS-MAINT")) {
+                        location = type;
+                        //System.out.println(location);
+                        if(location.equals("null")) {
+                            location = id;
+                            //System.out.println(location);
+                        }
+                    }
+                }
+                opLocations.put(id, location);
+                containerType.put(id, type);
+                facilityIds.add(id);
             }
 
             // adds lat/long for all points within JSON
@@ -119,8 +140,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 ratingsMap.clear();
                 for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
                     TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
-                    System.out.println(ratingObject.getRating());
-                    ratingsMap.put(ratingObject.getLocation(), ratingObject);
+                    //System.out.println(ratingObject.getRating());
+                    ratingsMap.put(ratingObject.getFacilityid(), ratingObject);
                 }
 
                 for(Marker marker : markerList) {
@@ -182,16 +203,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         for (int i = 0; i < locations.size(); i++) {
-            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(opLocations.get(i)));
+            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(facilityIds.get(i)));
             String snippet = "Rating: ";
             marker.setSnippet(snippet);
             markerList.add(marker);
         }
 
         LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(300).strokeColor(Color.rgb(0, 136, 255)));
+        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(600).strokeColor(Color.rgb(0, 136, 255)));
         for (Marker marker : markerList) {
-            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 300) {
+            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 600) {
                 marker.setVisible(true);
             }
         }
@@ -199,8 +220,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
-                showUpdateDialog(marker.getTitle());
-                return false;
+                if(!marker.equals(locationMarker)) {
+                    showUpdateDialog(marker.getTitle());
+                    return false;
+                }
+                return true;
             }
         });
     }
@@ -243,8 +267,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private void addMarker2Map(Location location) {
         LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
-
-        mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
+        locationMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
 
         float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
@@ -272,7 +295,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void showUpdateDialog(final String location) {
+    private void showUpdateDialog(final String facilityid) {
 
         LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);;
 
@@ -285,7 +308,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnUpdate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                updateRating(location, 1);
+                updateRating(facilityid, 1);
 
                 popupWindow.dismiss();
             }
@@ -295,7 +318,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnDelete.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                updateRating(location, -1);
+                updateRating(facilityid, -1);
 
                 popupWindow.dismiss();
             }
@@ -316,21 +339,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    private void updateRating(String location, int modifier) {
+    private void updateRating(String facilityid, int modifier) {
         TrashCanRating newRating;
         DatabaseReference dbRef;
 
-        if(ratingsMap.containsKey(location)) {
-            TrashCanRating curRating = ratingsMap.get(location);
+        if(ratingsMap.containsKey(facilityid)) {
+            TrashCanRating curRating = ratingsMap.get(facilityid);
             dbRef = ratingsDatabase.child(curRating.getId());
 
-            newRating = new TrashCanRating(curRating.getId(), location, curRating.getRating() + modifier);
+            newRating = new TrashCanRating(curRating.getId(), facilityid, curRating.getRating() + modifier);
 
         } else {
             String id = ratingsDatabase.push().getKey();
             dbRef = ratingsDatabase.child(id);
 
-            newRating = new TrashCanRating(id, location, modifier);
+            newRating = new TrashCanRating(id, facilityid, modifier);
         }
 
         Task setValueTask = dbRef.setValue(newRating);
@@ -420,9 +443,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // Spannable string allows us to edit the formatting of the text.
                 // SpannableString titleText = new SpannableString(title);
                 // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
-                titleUi.setText(title);
+                titleUi.setText(opLocations.get(title));
             } else {
                 titleUi.setText("");
+            }
+
+            String type = marker.getTitle();
+            TextView typeUi = view.findViewById(R.id.type);
+            if (type != null) {
+                // Spannable string allows us to edit the formatting of the text.
+                // SpannableString titleText = new SpannableString(title);
+                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
+                typeUi.setText(containerType.get(title));
+            } else {
+                typeUi.setText("N/A");
             }
 
             String snippet = marker.getSnippet();
