@@ -2,4 +2,5 @@
     <string name="app_name">TrashLink</string>
     <string name="title_activity_map">TrashCanMap</string>
     <string name="map_button_label">Find Bin</string>
+    <string name="title_activity_recycling_map">Map</string>
 </resources>
