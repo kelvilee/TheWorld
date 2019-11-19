@@ -130,15 +130,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     System.out.println(ratingObject.getRating());
                     ratingsMap.put(ratingObject.getLocation(), ratingObject);
                 }
-
-//                for(Marker marker : markerList) {
-//                    if(ratingsMap.containsKey(marker.getTitle())) {
-//                        int rating = ratingsMap.get(marker.getTitle()).getRating();
-//                        marker.setSnippet("Rating: " + rating);
-//                    } else {
-//                        marker.setSnippet("Rating: N/A");
-//                    }
-//                }
                 for (int i = 0; i < locations.size(); i++) {
                     Bin item = new Bin(locations.get(i).latitude, locations.get(i).longitude, opLocations.get(i), "Rating: ");
                     if(ratingsMap.containsKey(item.getTitle())) {
@@ -171,14 +162,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         setUpCluster();
         mMap.setInfoWindowAdapter(new TrashCanInfoWindowAdapter());
-
-//        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-//            @Override
-//            public boolean onMarkerClick(Marker marker) {
-//                showUpdateDialog(marker.getTitle());
-//                return false;
-//            }
-//        });
     }
 
     /**
