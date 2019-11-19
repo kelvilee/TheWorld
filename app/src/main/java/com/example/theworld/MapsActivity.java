@@ -4,21 +4,23 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -40,7 +42,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
@@ -272,36 +273,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void showUpdateDialog(final String location) {
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
 
-        LayoutInflater inflater = getLayoutInflater();
+        LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);;
 
-        final View dialogView = inflater.inflate(R.layout.rating_dialog, null);
-        dialogBuilder.setView(dialogView);
+        final View popupView = inflater.inflate(R.layout.rating_dialog, null);
 
-        dialogBuilder.setTitle("Rate " + location);
+        final PopupWindow popupWindow = new PopupWindow(popupView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, false);
 
-        final AlertDialog alertDialog = dialogBuilder.create();
-        alertDialog.show();
-
-        final Button btnUpdate = dialogView.findViewById(R.id.btnUpdate);
+        final Button btnUpdate = popupView.findViewById(R.id.btnUpdate);
 
         btnUpdate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 updateRating(location, 1);
 
-                alertDialog.dismiss();
+                popupWindow.dismiss();
             }
         });
 
-        final Button btnDelete = dialogView.findViewById(R.id.btnDelete);
+        final Button btnDelete = popupView.findViewById(R.id.btnDelete);
         btnDelete.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 updateRating(location, -1);
 
-                alertDialog.dismiss();
+                popupWindow.dismiss();
+            }
+        });
+
+        popupWindow.setBackgroundDrawable(new ColorDrawable());
+        popupWindow.setOutsideTouchable(true);
+
+        popupWindow.showAtLocation(popupView, Gravity.BOTTOM, 0, 300);
+
+        popupView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                popupWindow.dismiss();
+
+                return true;
             }
         });
     }
