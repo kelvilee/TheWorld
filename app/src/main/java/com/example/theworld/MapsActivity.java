@@ -319,7 +319,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
 
-        float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
+        float zoomLevel = 18.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
 
