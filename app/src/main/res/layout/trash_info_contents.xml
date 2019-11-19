@@ -23,20 +23,4 @@
         android:singleLine="true"
         android:textColor="#ff7f7f7f"
         android:textSize="14dp" />
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Pos"/>
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Neg"/>
-    </LinearLayout>
 </LinearLayout>
