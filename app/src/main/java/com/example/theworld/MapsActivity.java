@@ -45,6 +45,8 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.clustering.Cluster;
+import com.google.maps.android.clustering.ClusterItem;
 import com.google.maps.android.clustering.ClusterManager;
 
 import org.json.JSONArray;
@@ -70,6 +72,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private DatabaseReference ratingsDatabase;
     private ClusterManager<Bin> mClusterManager;
+    private ArrayList<Bin> binList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,20 +124,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 ratingsMap.clear();
+                mClusterManager.clearItems();
                 for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
                     TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
                     System.out.println(ratingObject.getRating());
                     ratingsMap.put(ratingObject.getLocation(), ratingObject);
                 }
 
-                for(Marker marker : markerList) {
-                    if(ratingsMap.containsKey(marker.getTitle())) {
-                        int rating = ratingsMap.get(marker.getTitle()).getRating();
-                        marker.setSnippet("Rating: " + rating);
+//                for(Marker marker : markerList) {
+//                    if(ratingsMap.containsKey(marker.getTitle())) {
+//                        int rating = ratingsMap.get(marker.getTitle()).getRating();
+//                        marker.setSnippet("Rating: " + rating);
+//                    } else {
+//                        marker.setSnippet("Rating: N/A");
+//                    }
+//                }
+                for (int i = 0; i < locations.size(); i++) {
+                    Bin item = new Bin(locations.get(i).latitude, locations.get(i).longitude, opLocations.get(i), "Rating: ");
+                    if(ratingsMap.containsKey(item.getTitle())) {
+                        int rating = ratingsMap.get(item.getTitle()).getRating();
+                        item.setmSnippet("Rating: " + rating);
                     } else {
-                        marker.setSnippet("Rating: N/A");
+                        item.setmSnippet("Rating: N/A");
                     }
+                    mClusterManager.addItem(item);
                 }
+                mClusterManager.cluster();
             }
 
             @Override
@@ -155,14 +170,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         setUpCluster();
+        mMap.setInfoWindowAdapter(new TrashCanInfoWindowAdapter());
 
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                showUpdateDialog(marker.getTitle());
-                return false;
-            }
-        });
+//        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+//            @Override
+//            public boolean onMarkerClick(Marker marker) {
+//                showUpdateDialog(marker.getTitle());
+//                return false;
+//            }
+//        });
     }
 
     /**
@@ -242,9 +258,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 17));
         mClusterManager = new ClusterManager<>(this, mMap);
-        mClusterManager.setRenderer(new BinIconRendered(this, mMap, mClusterManager));
+        final BinIconRendered mClusterRenderer = new BinIconRendered(this, mMap, mClusterManager);
+        mClusterManager.setRenderer(mClusterRenderer);
         mMap.setOnCameraIdleListener(mClusterManager);
         mMap.setOnMarkerClickListener(mClusterManager);
+        mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<Bin>() {
+            @Override
+            public boolean onClusterItemClick(Bin bin) {
+                showUpdateDialog(bin.getTitle());
+                Toast.makeText(MapsActivity.this, "wow", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
+        mClusterManager.setOnClusterClickListener(new ClusterManager.OnClusterClickListener<Bin>() {
+            @Override
+            public boolean onClusterClick(Cluster<Bin> cluster) {
+                Toast.makeText(MapsActivity.this, "hello", Toast.LENGTH_SHORT).show();
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(cluster.getPosition(), (float) Math.floor(mMap.getCameraPosition().zoom + 2)), 300, null);
+                return true;
+            }
+        });
         addItems();
     }
 
