@@ -17,6 +17,7 @@ public class BinIconRendered extends DefaultClusterRenderer<Bin> {
     protected void onBeforeClusterItemRendered(Bin bin, MarkerOptions markerOptions) {
         markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage));
         markerOptions.title(bin.getTitle());
+        markerOptions.snippet(bin.getSnippet());
         super.onBeforeClusterItemRendered(bin, markerOptions);
     }
 }

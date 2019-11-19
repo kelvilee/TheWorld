@@ -30,4 +30,6 @@ public class Bin implements ClusterItem {
     public String getSnippet() {
         return mSnippet;
     }
+
+    public void setmSnippet(String s) { mSnippet = s; }
 }
