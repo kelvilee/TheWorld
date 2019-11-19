@@ -45,6 +45,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.clustering.ClusterManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -72,6 +73,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private DatabaseReference ratingsDatabase;
     private Marker locationMarker;
+    private ClusterManager<Bin> mClusterManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -174,49 +176,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setInfoWindowAdapter(new TrashCanInfoWindowAdapter());
-
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-//                addMarker2Map(location);
-            }
-
-            @Override
-            public void onStatusChanged(String s, int i, Bundle bundle) {
-            }
-
-            @Override
-            public void onProviderEnabled(String s) {
-            }
-
-            @Override
-            public void onProviderDisabled(String s) {
-            }
-        };
-
-        Location lastKnownLocation = null;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            addMarker2Map(lastKnownLocation);
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-        }
-        // add garbage can markers
-        for (int i = 0; i < locations.size(); i++) {
-            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(facilityIds.get(i)));
-            String snippet = "Rating: ";
-            marker.setSnippet(snippet);
-            markerList.add(marker);
-        }
-        LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(600).strokeColor(Color.rgb(0, 136, 255)));
-        for (Marker marker : markerList) {
-            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 600) {
-                marker.setVisible(true);
-            }
-        }
+        setUpCluster();
 
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
@@ -273,6 +233,50 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
+    }
+
+    private void setUpCluster() {
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+            }
+
+            @Override
+            public void onStatusChanged(String s, int i, Bundle bundle) {
+            }
+
+            @Override
+            public void onProviderEnabled(String s) {
+            }
+
+            @Override
+            public void onProviderDisabled(String s) {
+            }
+        };
+
+        Location lastKnownLocation = null;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            addMarker2Map(lastKnownLocation);
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 17));
+        mClusterManager = new ClusterManager<>(this, mMap);
+        mClusterManager.setRenderer(new BinIconRendered(this, mMap, mClusterManager));
+        mMap.setOnCameraIdleListener(mClusterManager);
+        mMap.setOnMarkerClickListener(mClusterManager);
+        addItems();
+    }
+
+    private void addItems() {
+        for (int i = 0; i < locations.size(); i++) {
+            Bin item = new Bin(locations.get(i).latitude, locations.get(i).longitude, opLocations.get(i), "Rating: ");
+            mClusterManager.addItem(item);
+        }
     }
 
     /**
