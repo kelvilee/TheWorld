@@ -5,12 +5,13 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:padding="15dp"
-    android:background="#ffffff">
+    android:background="@drawable/popup_background">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="How would you rate the condition of this Litter Container?"   />
+        android:textColor="#ff000000"
+        android:text="@string/ratingPopupText"   />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,21 +20,23 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnUpdate"
+            android:id="@+id/btnGoodRating"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginHorizontal="25dp"
-            android:text="Good" />
+            style="@style/Widget.AppCompat.Button.Colored"
+            android:text="@string/goodRatingLabel" />
 
 
         <Button
-            android:id="@+id/btnDelete"
+            android:id="@+id/btnBadRating"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:layout_marginHorizontal="25dp"
-            android:text="Bad" />
+            style="@style/Widget.AppCompat.Button.Colored"
+            android:text="@string/badRatingLabel" />
 
     </LinearLayout>
 </LinearLayout>

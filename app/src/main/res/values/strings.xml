@@ -4,4 +4,8 @@
     <string name="map_button_label">Find Bin</string>
     <string name="title_activity_recycling_map">Map</string>
     <string name="recycling_centers">Recycling Centers</string>
+    <string name="badRatingLabel">Bad</string>
+    <string name="goodRatingLabel">Good</string>
+    <string name="ratingPopupText">How would you rate the condition of this Litter Container?</string>
+    <string name="backLabel">Back</string>
 </resources>
