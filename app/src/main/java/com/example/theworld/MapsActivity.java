@@ -68,7 +68,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ArrayList<LatLng> locations = new ArrayList<>();
     private HashMap<String, String> opLocations = new HashMap<>(); //TODO: maybe use a different data structure to hold information
     private ArrayList<String> facilityIds = new ArrayList<>();
-    private HashMap<String, String> containerType = new HashMap<>();
+    private HashMap<String, Bin> binMap = new HashMap<>();
     private LocationManager locationManager;
     private LocationListener locationListener;
     private ArrayList<Marker> markerList = new ArrayList<>();
@@ -113,16 +113,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                     }
                 }
-                opLocations.put(id, location);
-                containerType.put(id, type);
-                facilityIds.add(id);
+//                opLocations.put(id, location);
+//                containerType.put(id, type);
+//                facilityIds.add(id);
+//
+                coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
+                UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
+                //locations.add(new LatLng(degs.latitude, degs.longitude));
+
+                Bin bin = new Bin(degs.latitude, degs.longitude, id, location, type, "Rating: ");
+                binList.add(bin);
+                binMap.put(id, bin);
             }
 
             // adds lat/long for all points within JSON
             for (int i = 0; i < litterBinsArray.length(); i++) {
-                coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
-                UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
-                locations.add(new LatLng(degs.latitude, degs.longitude));
             }
         } catch (final JSONException e) {
             Log.e(TAG, "Json parsing error: " + e.getMessage());
@@ -151,15 +156,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     //System.out.println(ratingObject.getRating());
                     ratingsMap.put(ratingObject.getFacilityid(), ratingObject);
                 }
-                for (int i = 0; i < locations.size(); i++) {
-                    Bin item = new Bin(locations.get(i).latitude, locations.get(i).longitude, opLocations.get(i), "Rating: ");
-                    if(ratingsMap.containsKey(item.getTitle())) {
-                        int rating = ratingsMap.get(item.getTitle()).getRating();
-                        item.setmSnippet("Rating: " + rating);
+                for (Bin bin : binList) {
+                    if(ratingsMap.containsKey(bin.getFacilityId())) {
+                        int rating = ratingsMap.get(bin.getFacilityId()).getRating();
+                        bin.setmSnippet("Rating: " + rating);
                     } else {
-                        item.setmSnippet("Rating: N/A");
+                        bin.setmSnippet("Rating: N/A");
                     }
-                    mClusterManager.addItem(item);
+                    mClusterManager.addItem(bin);
                 }
                 mClusterManager.cluster();
             }
@@ -225,7 +229,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void addMarker2Map(Location location) {
         LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
         locationMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
-
         float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
@@ -268,7 +271,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<Bin>() {
             @Override
             public boolean onClusterItemClick(Bin bin) {
-                showUpdateDialog(bin.getTitle());
+                showUpdateDialog(bin.getFacilityId());
                 Toast.makeText(MapsActivity.this, "wow", Toast.LENGTH_SHORT).show();
                 return false;
             }
@@ -285,9 +288,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void addItems() {
-        for (int i = 0; i < locations.size(); i++) {
-            Bin item = new Bin(locations.get(i).latitude, locations.get(i).longitude, opLocations.get(i), "Rating: ");
-            mClusterManager.addItem(item);
+        for (Bin bin : binList) {
+            mClusterManager.addItem(bin);
         }
     }
 
@@ -455,29 +457,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         private void render(Marker marker, View view) {
-            String title = marker.getTitle();
+            String id = marker.getTitle();
+
+            String title = binMap.get(id).getTitle();
             TextView titleUi = view.findViewById(R.id.title);
             if (title != null) {
                 // Spannable string allows us to edit the formatting of the text.
                 // SpannableString titleText = new SpannableString(title);
                 // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
-                titleUi.setText(opLocations.get(title));
+                titleUi.setText(title);
             } else {
                 titleUi.setText("");
             }
 
-            String type = marker.getTitle();
+            String type = binMap.get(id).getContainerType();
             TextView typeUi = view.findViewById(R.id.type);
             if (type != null) {
                 // Spannable string allows us to edit the formatting of the text.
                 // SpannableString titleText = new SpannableString(title);
                 // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
-                typeUi.setText(containerType.get(title));
+                typeUi.setText(type);
             } else {
                 typeUi.setText("N/A");
             }
 
-            String snippet = marker.getSnippet();
+            String snippet = binMap.get(id).getSnippet();
             TextView snippetUi = view.findViewById(R.id.snippet);
             if (snippet != null) {
                 //SpannableString snippetText = new SpannableString(snippet);
