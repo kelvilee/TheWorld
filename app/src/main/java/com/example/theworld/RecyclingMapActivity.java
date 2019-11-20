@@ -6,11 +6,13 @@ import androidx.fragment.app.FragmentActivity;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
@@ -154,6 +156,15 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
             }
         });
 
+        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+                PlaceOfInterest poi = placeOfInterests.get(Integer.parseInt(marker.getTitle()));
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(poi.getWeblink()));
+                startActivity(browserIntent);
+            }
+        });
+
         mMap.setInfoWindowAdapter(new RecyclingCenterInfoWindowAdapter());
 
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
@@ -267,6 +278,17 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
                 snippetUi.setText(snippet);
             } else {
                 snippetUi.setText("");
+            }
+
+            String link = poi.getWeblink();
+            TextView weblinkUi = view.findViewById(R.id.weblink);
+            if (link != null) {
+                //SpannableString snippetText = new SpannableString(snippet);
+                //snippetText.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, 10, 0);
+                //snippetText.setSpan(new ForegroundColorSpan(Color.BLUE), 12, snippet.length(), 0);
+                weblinkUi.setText(link);
+            } else {
+                weblinkUi.setText("");
             }
         }
     }

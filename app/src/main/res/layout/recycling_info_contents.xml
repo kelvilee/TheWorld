@@ -32,4 +32,13 @@
         android:singleLine="true"
         android:textColor="#ff7f7f7f"
         android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/weblink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/colorAccent"
+        android:textSize="14sp" />
 </LinearLayout>
