@@ -44,6 +44,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.maps.android.MarkerManager;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterItem;
@@ -77,6 +78,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Marker locationMarker;
     private ClusterManager<Bin> mClusterManager;
     private ArrayList<Bin> binList = new ArrayList<>();
+    MarkerManager.Collection normalMarkers;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -228,7 +230,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private void addMarker2Map(Location location) {
         LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
-        locationMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
+        normalMarkers.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
         float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
@@ -253,21 +255,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         };
 
-        Location lastKnownLocation = null;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            addMarker2Map(lastKnownLocation);
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-        }
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 17));
         mClusterManager = new ClusterManager<>(this, mMap);
         final BinIconRendered mClusterRenderer = new BinIconRendered(this, mMap, mClusterManager);
         mClusterManager.setRenderer(mClusterRenderer);
         mMap.setOnCameraIdleListener(mClusterManager);
-        mMap.setOnMarkerClickListener(mClusterManager);
+        mMap.setOnMarkerClickListener(mClusterManager.getMarkerManager());
+        normalMarkers = mClusterManager.getMarkerManager().newCollection();
+        normalMarkers.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                return true;
+            }
+        });
         mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<Bin>() {
             @Override
             public boolean onClusterItemClick(Bin bin) {
@@ -284,6 +283,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return true;
             }
         });
+
+        Location lastKnownLocation = null;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            addMarker2Map(lastKnownLocation);
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 17));
         addItems();
     }
 
@@ -451,7 +461,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         @Override
         public View getInfoContents(Marker marker) {
-
             render(marker, mContents);
             return mContents;
         }
@@ -459,7 +468,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         private void render(Marker marker, View view) {
             String id = marker.getTitle();
 
-            String title = binMap.get(id).getTitle();
+            Bin bin = binMap.get(id);
+            String title = bin.getTitle();
             TextView titleUi = view.findViewById(R.id.title);
             if (title != null) {
                 // Spannable string allows us to edit the formatting of the text.
@@ -470,7 +480,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 titleUi.setText("");
             }
 
-            String type = binMap.get(id).getContainerType();
+            String type = bin.getContainerType();
             TextView typeUi = view.findViewById(R.id.type);
             if (type != null) {
                 // Spannable string allows us to edit the formatting of the text.
@@ -481,7 +491,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 typeUi.setText("N/A");
             }
 
-            String snippet = binMap.get(id).getSnippet();
+            String snippet = bin.getSnippet();
             TextView snippetUi = view.findViewById(R.id.snippet);
             if (snippet != null) {
                 //SpannableString snippetText = new SpannableString(snippet);
