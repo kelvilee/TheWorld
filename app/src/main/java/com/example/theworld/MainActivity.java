@@ -42,15 +42,12 @@ public class MainActivity extends AppCompatActivity {
                 switch (item.getItemId()) {
                     case R.id.action_recents:
                         selectedFragment = new HomeFragment();
-                        Toast.makeText(MainActivity.this, "Home", Toast.LENGTH_SHORT).show();
                         break;
                     case R.id.action_favorites:
                         selectedFragment = new MapsFragment();
-                        Toast.makeText(MainActivity.this, "Map", Toast.LENGTH_SHORT).show();
                         break;
                     case R.id.action_nearby:
                         selectedFragment = new ToolsFragment();
-                        Toast.makeText(MainActivity.this, "Tools", Toast.LENGTH_SHORT).show();
                         break;
                 }
                 getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, selectedFragment).commit();
