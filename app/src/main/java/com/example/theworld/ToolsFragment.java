@@ -17,6 +17,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 
 public class ToolsFragment extends Fragment {
@@ -43,6 +45,19 @@ public class ToolsFragment extends Fragment {
                     TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
                     trashCanRatings.add(ratingObject);
                 }
+
+                Collections.sort(trashCanRatings, new Comparator<TrashCanRating>() {
+                    @Override
+                    public int compare(TrashCanRating data1, TrashCanRating data2) {
+                        if( data1.getRating() > data2.getRating() )
+                            return -1;
+                        else if (data1.getRating() < data2.getRating())
+                            return 1;
+                        else
+                            return 0;
+                    }
+                });
+
                 BinListAdapter adapter = new BinListAdapter(getActivity(), trashCanRatings);
                 lvBins.setAdapter(adapter);
             }

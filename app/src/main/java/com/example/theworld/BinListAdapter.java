@@ -29,12 +29,15 @@ public class BinListAdapter  extends ArrayAdapter<TrashCanRating> {
 
         View listViewItem = inflater.inflate(R.layout.list_layout, null, true);
 
+        TextView tvRank = listViewItem.findViewById(R.id.tvRank);
         TextView tvId = listViewItem.findViewById(R.id.tvTitle);
         TextView tvFacId = listViewItem.findViewById(R.id.tvSnippet);
         TextView tvRating = listViewItem.findViewById(R.id.tvRating);
 
 
         TrashCanRating reading = binList.get(position);
+
+        tvRank.setText("" + (position + 1));
         tvId.setText(reading.getLocation());
         tvFacId.setText(reading.getFacilityid());
         tvRating.setText("" + reading.getRating());

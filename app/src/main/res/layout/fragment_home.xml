@@ -3,25 +3,66 @@
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <ImageView
+        android:id="@+id/bannerImg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/su"
+        android:scaleType="fitStart"/>
+
+    <ImageView
+        android:id="@+id/logoImg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_above="@+id/map_button"
+        android:layout_marginBottom="10dp"
+        android:src="@drawable/logo" />
+
+    <TextView
+        android:id="@+id/txtHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/map_button"
+        android:textSize="30sp"
+        android:layout_marginBottom="60dp"
+        android:gravity="center"/>
+
+
     <Button
         android:id="@+id/map_button"
-        style="@style/Widget.AppCompat.Button.Colored"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_above="@id/recycling_button"
-        android:layout_centerHorizontal="true"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:textSize="30sp"
+        android:text="@string/map_button_label"
         android:onClick="goToMap"
-        android:padding="30sp"
-        android:text="@string/map_button_label" />
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:layout_above="@+id/recycling_button"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:paddingStart="40dp"
+        android:paddingEnd="40dp"
+        android:textAllCaps="false"
+        android:gravity="center_vertical"
+        android:drawableEnd="@drawable/icongarbage"
+        android:layout_centerHorizontal="true"/>
 
     <Button
         android:id="@+id/recycling_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:textSize="30sp"
         android:text="@string/recycling_centers"
         android:onClick="goToRecyclingMap"
         style="@style/Widget.AppCompat.Button.Colored"
-        android:padding="30sp"
-        android:layout_centerInParent="true"/>
+        android:paddingStart="40dp"
+        android:paddingEnd="40dp"
+        android:layout_alignParentBottom="true"
+        android:layout_margin="10dp"
+        android:textAllCaps="false"
+        android:gravity="center_vertical"
+        android:drawableEnd="@drawable/iconbottle"
+
+        android:layout_centerHorizontal="true"/>
 
 </RelativeLayout>
