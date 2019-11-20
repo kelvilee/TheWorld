@@ -32,7 +32,7 @@
     <Button
         android:id="@+id/map_button"
         android:layout_width="match_parent"
-        android:layout_height="150dp"
+        android:layout_height="120dp"
         android:textSize="30sp"
         android:text="@string/map_button_label"
         android:onClick="goToMap"
@@ -50,7 +50,7 @@
     <Button
         android:id="@+id/recycling_button"
         android:layout_width="match_parent"
-        android:layout_height="150dp"
+        android:layout_height="120dp"
         android:textSize="30sp"
         android:text="@string/recycling_centers"
         android:onClick="goToRecyclingMap"
@@ -58,7 +58,9 @@
         android:paddingStart="40dp"
         android:paddingEnd="40dp"
         android:layout_alignParentBottom="true"
-        android:layout_margin="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="10dp"
         android:textAllCaps="false"
         android:gravity="center_vertical"
         android:drawableEnd="@drawable/iconbottle"
