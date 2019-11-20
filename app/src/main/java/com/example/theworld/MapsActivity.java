@@ -66,16 +66,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String TAG = MainActivity.class.getSimpleName();
     private GoogleMap mMap;
-    private ArrayList<LatLng> locations = new ArrayList<>();
-    private HashMap<String, String> opLocations = new HashMap<>(); //TODO: maybe use a different data structure to hold information
-    private ArrayList<String> facilityIds = new ArrayList<>();
     private HashMap<String, Bin> binMap = new HashMap<>();
     private LocationManager locationManager;
     private LocationListener locationListener;
-    private ArrayList<Marker> markerList = new ArrayList<>();
     private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private DatabaseReference ratingsDatabase;
-    private Marker locationMarker;
     private ClusterManager<Bin> mClusterManager;
     private ArrayList<Bin> binList = new ArrayList<>();
     MarkerManager.Collection normalMarkers;
@@ -115,13 +110,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                     }
                 }
-//                opLocations.put(id, location);
-//                containerType.put(id, type);
-//                facilityIds.add(id);
 //
                 coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
                 UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
-                //locations.add(new LatLng(degs.latitude, degs.longitude));
 
                 Bin bin = new Bin(degs.latitude, degs.longitude, id, location, type, "Rating: ");
                 binList.add(bin);
@@ -155,7 +146,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mClusterManager.clearItems();
                 for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
                     TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
-                    //System.out.println(ratingObject.getRating());
                     ratingsMap.put(ratingObject.getFacilityid(), ratingObject);
                 }
                 for (Bin bin : binList) {
@@ -174,7 +164,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onCancelled(@NonNull DatabaseError databaseError) { }
         });
     }
-    
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
