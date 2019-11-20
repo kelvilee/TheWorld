@@ -4,15 +4,51 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ListView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
 public class ToolsFragment extends Fragment {
+    private DatabaseReference ratingsDatabase;
+    private ListView lvBins;
+    private ArrayList<TrashCanRating> trashCanRatings = new ArrayList<>();
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_tools, container, false);
+        View view = inflater.inflate(R.layout.fragment_tools, container, false);
+        ratingsDatabase = FirebaseDatabase.getInstance().getReference("trashcans");
+        lvBins = view.findViewById(R.id.lvTrashCans);
+        return view;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        ratingsDatabase.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                trashCanRatings.clear();
+                for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
+                    TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
+                    trashCanRatings.add(ratingObject);
+                }
+                BinListAdapter adapter = new BinListAdapter(getActivity(), trashCanRatings);
+                lvBins.setAdapter(adapter);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) { }
+        });
     }
 }

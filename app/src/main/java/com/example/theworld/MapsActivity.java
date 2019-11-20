@@ -375,13 +375,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             TrashCanRating curRating = ratingsMap.get(facilityid);
             dbRef = ratingsDatabase.child(curRating.getId());
 
-            newRating = new TrashCanRating(curRating.getId(), facilityid, curRating.getRating() + modifier);
+            newRating = new TrashCanRating(curRating.getId(), facilityid, curRating.getRating() + modifier, curRating.getLocation());
 
         } else {
             String id = ratingsDatabase.push().getKey();
             dbRef = ratingsDatabase.child(id);
 
-            newRating = new TrashCanRating(id, facilityid, modifier);
+            newRating = new TrashCanRating(id, facilityid, modifier, binMap.get(facilityid).getTitle());
         }
 
         Task setValueTask = dbRef.setValue(newRating);
