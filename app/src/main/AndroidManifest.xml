@@ -28,11 +28,14 @@
         -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
+            android:value="AIzaSyCn7xR9rWZNF64cPgXvSPdDhtTUOELKieE" />
 
         <activity
+            android:name=".RecyclingMapActivity"
+            android:label="@string/title_activity_recycling_map"></activity>
+        <activity
             android:name=".MapsActivity"
-            android:label="@string/title_activity_map"></activity>
+            android:label="@string/title_activity_map" />
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

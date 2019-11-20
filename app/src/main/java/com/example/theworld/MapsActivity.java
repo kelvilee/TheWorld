@@ -29,6 +29,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -43,7 +44,11 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.maps.android.MarkerManager;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.clustering.Cluster;
+import com.google.maps.android.clustering.ClusterItem;
+import com.google.maps.android.clustering.ClusterManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -64,13 +69,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ArrayList<LatLng> locations = new ArrayList<>();
     private HashMap<String, String> opLocations = new HashMap<>(); //TODO: maybe use a different data structure to hold information
     private ArrayList<String> facilityIds = new ArrayList<>();
-    private HashMap<String, String> containerType = new HashMap<>();
+    private HashMap<String, Bin> binMap = new HashMap<>();
     private LocationManager locationManager;
     private LocationListener locationListener;
     private ArrayList<Marker> markerList = new ArrayList<>();
     private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private DatabaseReference ratingsDatabase;
     private Marker locationMarker;
+    private ClusterManager<Bin> mClusterManager;
+    private ArrayList<Bin> binList = new ArrayList<>();
+    MarkerManager.Collection normalMarkers;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +91,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        // litter_containers.json
         try {
             JSONObject obj = new JSONObject(loadJSONFromAsset(getApplicationContext()));
             JSONArray litterBinsArray = obj.getJSONArray("features");
@@ -106,16 +115,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                     }
                 }
-                opLocations.put(id, location);
-                containerType.put(id, type);
-                facilityIds.add(id);
+//                opLocations.put(id, location);
+//                containerType.put(id, type);
+//                facilityIds.add(id);
+//
+                coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
+                UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
+                //locations.add(new LatLng(degs.latitude, degs.longitude));
+
+                Bin bin = new Bin(degs.latitude, degs.longitude, id, location, type, "Rating: ");
+                binList.add(bin);
+                binMap.put(id, bin);
             }
 
             // adds lat/long for all points within JSON
             for (int i = 0; i < litterBinsArray.length(); i++) {
-                coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
-                UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
-                locations.add(new LatLng(degs.latitude, degs.longitude));
             }
         } catch (final JSONException e) {
             Log.e(TAG, "Json parsing error: " + e.getMessage());
@@ -138,20 +152,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 ratingsMap.clear();
+                mClusterManager.clearItems();
                 for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
                     TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
                     //System.out.println(ratingObject.getRating());
                     ratingsMap.put(ratingObject.getFacilityid(), ratingObject);
                 }
-
-                for(Marker marker : markerList) {
-                    if(ratingsMap.containsKey(marker.getTitle())) {
-                        int rating = ratingsMap.get(marker.getTitle()).getRating();
-                        marker.setSnippet("Rating: " + rating);
+                for (Bin bin : binList) {
+                    if(ratingsMap.containsKey(bin.getFacilityId())) {
+                        int rating = ratingsMap.get(bin.getFacilityId()).getRating();
+                        bin.setmSnippet("Rating: " + rating);
                     } else {
-                        marker.setSnippet("Rating: N/A");
+                        bin.setmSnippet("Rating: N/A");
                     }
+                    mClusterManager.addItem(bin);
                 }
+                mClusterManager.cluster();
             }
 
             @Override
@@ -172,61 +188,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setInfoWindowAdapter(new TrashCanInfoWindowAdapter());
-
-        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-//                addMarker2Map(location);
-            }
-
-            @Override
-            public void onStatusChanged(String s, int i, Bundle bundle) {
-            }
-
-            @Override
-            public void onProviderEnabled(String s) {
-            }
-
-            @Override
-            public void onProviderDisabled(String s) {
-            }
-        };
-
-        Location lastKnownLocation = null;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            addMarker2Map(lastKnownLocation);
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-        }
-
-        for (int i = 0; i < locations.size(); i++) {
-            Marker marker = mMap.addMarker(new MarkerOptions().position(locations.get(i)).icon(BitmapDescriptorFactory.fromResource(R.drawable.garbage)).visible(false).title(facilityIds.get(i)));
-            String snippet = "Rating: ";
-            marker.setSnippet(snippet);
-            markerList.add(marker);
-        }
-
-        LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
-        Circle circle = mMap.addCircle(new CircleOptions().center(latLng).radius(600).strokeColor(Color.rgb(0, 136, 255)));
-        for (Marker marker : markerList) {
-            if (SphericalUtil.computeDistanceBetween(latLng, marker.getPosition()) < 600) {
-                marker.setVisible(true);
-            }
-        }
-
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                if(!marker.equals(locationMarker)) {
-                    showUpdateDialog(marker.getTitle());
-                    return false;
-                }
-                return true;
-            }
-        });
+        setUpCluster();
     }
 
     /**
@@ -260,6 +222,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return json;
     }
 
+
     /**
      * Adds marker to map and centers on the location
      *
@@ -267,10 +230,77 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     private void addMarker2Map(Location location) {
         LatLng latlng = new LatLng(location.getLatitude(), location.getLongitude());
-        locationMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
-
+        normalMarkers.addMarker(new MarkerOptions().position(latlng).title("Current Location"));
         float zoomLevel = 16.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
+    }
+
+    private void setUpCluster() {
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+            }
+
+            @Override
+            public void onStatusChanged(String s, int i, Bundle bundle) {
+            }
+
+            @Override
+            public void onProviderEnabled(String s) {
+            }
+
+            @Override
+            public void onProviderDisabled(String s) {
+            }
+        };
+
+        mClusterManager = new ClusterManager<>(this, mMap);
+        final BinIconRendered mClusterRenderer = new BinIconRendered(this, mMap, mClusterManager);
+        mClusterManager.setRenderer(mClusterRenderer);
+        mMap.setOnCameraIdleListener(mClusterManager);
+        mMap.setOnMarkerClickListener(mClusterManager.getMarkerManager());
+        normalMarkers = mClusterManager.getMarkerManager().newCollection();
+        normalMarkers.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                return true;
+            }
+        });
+        mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<Bin>() {
+            @Override
+            public boolean onClusterItemClick(Bin bin) {
+                showUpdateDialog(bin.getFacilityId());
+                Toast.makeText(MapsActivity.this, "wow", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        });
+        mClusterManager.setOnClusterClickListener(new ClusterManager.OnClusterClickListener<Bin>() {
+            @Override
+            public boolean onClusterClick(Cluster<Bin> cluster) {
+                Toast.makeText(MapsActivity.this, "hello", Toast.LENGTH_SHORT).show();
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(cluster.getPosition(), (float) Math.floor(mMap.getCameraPosition().zoom + 2)), 300, null);
+                return true;
+            }
+        });
+
+        Location lastKnownLocation = null;
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            addMarker2Map(lastKnownLocation);
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), 17));
+        addItems();
+    }
+
+    private void addItems() {
+        for (Bin bin : binList) {
+            mClusterManager.addItem(bin);
+        }
     }
 
     /**
@@ -431,35 +461,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         @Override
         public View getInfoContents(Marker marker) {
-
             render(marker, mContents);
             return mContents;
         }
 
         private void render(Marker marker, View view) {
-            String title = marker.getTitle();
+            String id = marker.getTitle();
+
+            Bin bin = binMap.get(id);
+            String title = bin.getTitle();
             TextView titleUi = view.findViewById(R.id.title);
             if (title != null) {
                 // Spannable string allows us to edit the formatting of the text.
                 // SpannableString titleText = new SpannableString(title);
                 // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
-                titleUi.setText(opLocations.get(title));
+                titleUi.setText(title);
             } else {
                 titleUi.setText("");
             }
 
-            String type = marker.getTitle();
+            String type = bin.getContainerType();
             TextView typeUi = view.findViewById(R.id.type);
             if (type != null) {
                 // Spannable string allows us to edit the formatting of the text.
                 // SpannableString titleText = new SpannableString(title);
                 // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
-                typeUi.setText(containerType.get(title));
+                typeUi.setText(type);
             } else {
                 typeUi.setText("N/A");
             }
 
-            String snippet = marker.getSnippet();
+            String snippet = bin.getSnippet();
             TextView snippetUi = view.findViewById(R.id.snippet);
             if (snippet != null) {
                 //SpannableString snippetText = new SpannableString(snippet);
