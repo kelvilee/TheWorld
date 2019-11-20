@@ -1,5 +1,7 @@
 package com.example.theworld;
 
+import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -58,8 +60,11 @@ public class ToolsFragment extends Fragment {
                     }
                 });
 
-                BinListAdapter adapter = new BinListAdapter(getActivity(), trashCanRatings);
-                lvBins.setAdapter(adapter);
+
+                if(getActivity() != null) {
+                    BinListAdapter adapter = new BinListAdapter(getActivity(), trashCanRatings);
+                    lvBins.setAdapter(adapter);
+                }
             }
 
             @Override
