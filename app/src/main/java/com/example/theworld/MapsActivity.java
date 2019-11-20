@@ -74,6 +74,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ClusterManager<Bin> mClusterManager;
     private ArrayList<Bin> binList = new ArrayList<>();
     MarkerManager.Collection normalMarkers;
+    private Marker currentMarker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -158,6 +159,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     mClusterManager.addItem(bin);
                 }
                 mClusterManager.cluster();
+
+                if(currentMarker != null && currentMarker.isInfoWindowShown()) {
+                    currentMarker.showInfoWindow();
+                }
             }
 
             @Override
@@ -261,14 +266,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public boolean onClusterItemClick(Bin bin) {
                 showUpdateDialog(bin.getFacilityId());
-                Toast.makeText(MapsActivity.this, "wow", Toast.LENGTH_SHORT).show();
                 return false;
             }
         });
         mClusterManager.setOnClusterClickListener(new ClusterManager.OnClusterClickListener<Bin>() {
             @Override
             public boolean onClusterClick(Cluster<Bin> cluster) {
-                Toast.makeText(MapsActivity.this, "hello", Toast.LENGTH_SHORT).show();
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(cluster.getPosition(), (float) Math.floor(mMap.getCameraPosition().zoom + 2)), 300, null);
                 return true;
             }
@@ -456,6 +459,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         private void render(Marker marker, View view) {
+            currentMarker = marker;
+
             String id = marker.getTitle();
 
             Bin bin = binMap.get(id);
