@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -153,6 +154,8 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
             }
         });
 
+        mMap.setInfoWindowAdapter(new RecyclingCenterInfoWindowAdapter());
+
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         locationListener = new LocationListener() {
             @Override
@@ -184,10 +187,10 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
         // add recycling markers
         for(int i = 0; i < placeOfInterests.size(); i++) {
             if(placeOfInterests.get(i).getFacilitySubType().equals("Used Oil")) {
-                Marker marker = mMap.addMarker(new MarkerOptions().position(placeOfInterests.get(i).getLatLng()).icon(BitmapDescriptorFactory.fromResource(R.drawable.oil)).title(placeOfInterests.get(i).getName()).snippet(placeOfInterests.get(i).getLocation()));
+                Marker marker = mMap.addMarker(new MarkerOptions().position(placeOfInterests.get(i).getLatLng()).icon(BitmapDescriptorFactory.fromResource(R.drawable.oil)).title(Integer.toString(i)).snippet(placeOfInterests.get(i).getLocation()));
                 markerList.add(marker);
             } else if (placeOfInterests.get(i).getFacilitySubType().equals("Bottle Depot")) {
-                Marker marker = mMap.addMarker(new MarkerOptions().position(placeOfInterests.get(i).getLatLng()).icon(BitmapDescriptorFactory.fromResource(R.drawable.bottle)).title(placeOfInterests.get(i).getName()).snippet(placeOfInterests.get(i).getLocation()));
+                Marker marker = mMap.addMarker(new MarkerOptions().position(placeOfInterests.get(i).getLatLng()).icon(BitmapDescriptorFactory.fromResource(R.drawable.bottle)).title(Integer.toString(i)).snippet(placeOfInterests.get(i).getLocation()));
                 markerList.add(marker);
             }
         }
@@ -205,5 +208,66 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
 
         float zoomLevel = 12.0f; // sets zoom level to be 6, higher zoom levels are zoomed in more
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
+    }
+
+    private class RecyclingCenterInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+
+        // These are both viewgroups containing an ImageView with id "badge" and two TextViews with id
+        // "title" and "snippet".
+
+        private final View mContents;
+
+        RecyclingCenterInfoWindowAdapter() {
+            mContents = getLayoutInflater().inflate(R.layout.recycling_info_contents, null);
+        }
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+            return null;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            render(marker, mContents);
+            return mContents;
+        }
+
+        private void render(Marker marker, View view) {
+            int id = Integer.parseInt(marker.getTitle());
+
+            PlaceOfInterest poi = placeOfInterests.get(id);
+            String title = poi.getName();
+            TextView titleUi = view.findViewById(R.id.title);
+            if (title != null) {
+                // Spannable string allows us to edit the formatting of the text.
+                // SpannableString titleText = new SpannableString(title);
+                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
+                titleUi.setText(title);
+            } else {
+                titleUi.setText("");
+            }
+
+            String type = poi.getFacilitySubType();
+            TextView typeUi = view.findViewById(R.id.type);
+            if (type != null) {
+                // Spannable string allows us to edit the formatting of the text.
+                // SpannableString titleText = new SpannableString(title);
+                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
+                typeUi.setText(type);
+            } else {
+                typeUi.setText("N/A");
+            }
+
+            String snippet = poi.getLocation();
+            TextView snippetUi = view.findViewById(R.id.snippet);
+            if (snippet != null) {
+                //SpannableString snippetText = new SpannableString(snippet);
+                //snippetText.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, 10, 0);
+                //snippetText.setSpan(new ForegroundColorSpan(Color.BLUE), 12, snippet.length(), 0);
+                snippetUi.setText(snippet);
+            } else {
+                snippetUi.setText("");
+            }
+        }
     }
 }
