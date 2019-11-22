@@ -8,7 +8,6 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -19,7 +18,6 @@ import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,12 +26,9 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.Circle;
-import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -62,6 +57,7 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        //Adds back button to map.
         int buttonStyle = R.style.Widget_AppCompat_Button_Colored;
         Button button = new Button(new ContextThemeWrapper(this, buttonStyle), null, buttonStyle);
         button.setText(R.string.backLabel);
@@ -77,6 +73,9 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
         // places_of_interest.json
         try {
             JSONArray recycleArray = new JSONArray(loadJSONFromPlacesAsset(getApplicationContext()));
+
+            //Retrieves only places of interest that have the type Garbage and Recyling and adds them to
+            //our facility list
             for(int i = 0; i < recycleArray.length(); i++) {
                 String facType = recycleArray.getJSONObject(i).getString("FACILITY_TYPE").trim();
                 if(facType.equals("Garbage and Recycling")) {
@@ -150,6 +149,7 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
+        //Suppresses the info window if user clicks on the current location marker.
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
@@ -157,6 +157,8 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
             }
         });
 
+        //Create click listener so that clicking on the info window will bring the user to the
+        //URL displayed for the given Recycling marker
         mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
             @Override
             public void onInfoWindowClick(Marker marker) {
@@ -190,6 +192,7 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
 
         Location lastKnownLocation = getLastKnownLocation();
         addMarker2Map(lastKnownLocation);
+
 //        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 //            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
 //            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -198,6 +201,7 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
 //            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
 //        }
         // add recycling markers
+
         for(int i = 0; i < placeOfInterests.size(); i++) {
             if(placeOfInterests.get(i).getFacilitySubType().equals("Used Oil")) {
                 Marker marker = mMap.addMarker(new MarkerOptions().position(placeOfInterests.get(i).getLatLng()).icon(BitmapDescriptorFactory.fromResource(R.drawable.oil)).title(Integer.toString(i)).snippet(placeOfInterests.get(i).getLocation()));
@@ -247,6 +251,8 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoomLevel));
     }
 
+    // Custom InfoWindowAdapter that uses the recycling_info_contents layout file to
+    // create the info window that appears when a user clicks on any of the markers
     private class RecyclingCenterInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
 
         // These are both viewgroups containing an ImageView with id "badge" and two TextViews with id
@@ -272,49 +278,39 @@ public class RecyclingMapActivity extends FragmentActivity implements OnMapReady
         private void render(Marker marker, View view) {
             int id = Integer.parseInt(marker.getTitle());
 
+            //Gets the place of interest by the index stored in the corresponding marker title
             PlaceOfInterest poi = placeOfInterests.get(id);
-            String title = poi.getName();
+
+            String name = poi.getName();
             TextView titleUi = view.findViewById(R.id.title);
-            if (title != null) {
-                // Spannable string allows us to edit the formatting of the text.
-                // SpannableString titleText = new SpannableString(title);
-                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
-                titleUi.setText(title);
+            if (name != null) {
+                titleUi.setText(name);
             } else {
-                titleUi.setText("");
+                titleUi.setText("N/A");
             }
 
             String type = poi.getFacilitySubType();
             TextView typeUi = view.findViewById(R.id.type);
             if (type != null) {
-                // Spannable string allows us to edit the formatting of the text.
-                // SpannableString titleText = new SpannableString(title);
-                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
                 typeUi.setText(type);
             } else {
                 typeUi.setText("N/A");
             }
 
-            String snippet = poi.getLocation();
-            TextView snippetUi = view.findViewById(R.id.snippet);
-            if (snippet != null) {
-                //SpannableString snippetText = new SpannableString(snippet);
-                //snippetText.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, 10, 0);
-                //snippetText.setSpan(new ForegroundColorSpan(Color.BLUE), 12, snippet.length(), 0);
-                snippetUi.setText(snippet);
+            String location = poi.getLocation();
+            TextView snippetUi = view.findViewById(R.id.location);
+            if (location != null) {
+                snippetUi.setText(location);
             } else {
-                snippetUi.setText("");
+                snippetUi.setText("N/A");
             }
 
             String link = poi.getWeblink();
             TextView weblinkUi = view.findViewById(R.id.weblink);
             if (link != null) {
-                //SpannableString snippetText = new SpannableString(snippet);
-                //snippetText.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, 10, 0);
-                //snippetText.setSpan(new ForegroundColorSpan(Color.BLUE), 12, snippet.length(), 0);
                 weblinkUi.setText(link);
             } else {
-                weblinkUi.setText("");
+                weblinkUi.setText("N/A");
             }
         }
     }

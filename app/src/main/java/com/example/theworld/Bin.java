@@ -5,10 +5,10 @@ import com.google.maps.android.clustering.ClusterItem;
 
 public class Bin implements ClusterItem {
     private final LatLng mPosition;
-    private String mFacilityId;
-    private String mTitle;
-    private String mContainerType;
-    private String mSnippet;
+    private String facilityId;
+    private String title;
+    private String containerType;
+    private String rating;
 
     public Bin(double lat, double lng) {
         mPosition = new LatLng(lat, lng);
@@ -16,10 +16,10 @@ public class Bin implements ClusterItem {
 
     public Bin(double lat, double lng, String facilityId, String title, String containerType, String snippet) {
         mPosition = new LatLng(lat, lng);
-        mFacilityId = facilityId;
-        mTitle = title;
-        mContainerType = containerType;
-        mSnippet = snippet;
+        this.facilityId = facilityId;
+        this.title = title;
+        this.containerType = containerType;
+        rating = snippet;
     }
 
     @Override
@@ -28,18 +28,18 @@ public class Bin implements ClusterItem {
     }
 
     public String getFacilityId() {
-        return mFacilityId;
+        return facilityId;
     }
 
-    public String getContainerType() { return mContainerType; }
+    public String getContainerType() { return containerType; }
 
     public String getTitle() {
-        return mTitle;
+        return title;
     }
 
-    public String getSnippet() {
-        return mSnippet;
+    public String getRating() {
+        return rating;
     }
 
-    public void setmSnippet(String s) { mSnippet = s; }
+    public void setRating(String s) { rating = s; }
 }

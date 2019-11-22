@@ -61,14 +61,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String TAG = MainActivity.class.getSimpleName();
     private GoogleMap mMap;
     private HashMap<String, Bin> binMap = new HashMap<>();
+    private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private LocationManager locationManager;
     private LocationListener locationListener;
-    private HashMap<String, TrashCanRating> ratingsMap = new HashMap<>();
     private DatabaseReference ratingsDatabase;
     private ClusterManager<Bin> mClusterManager;
     private ArrayList<Bin> binList = new ArrayList<>();
-    MarkerManager.Collection normalMarkers;
     private Marker currentMarker;
+    MarkerManager.Collection normalMarkers;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +82,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        //Adds back button to map.
         int buttonStyle = R.style.Widget_AppCompat_Button_Colored;
         Button button = new Button(new ContextThemeWrapper(this, buttonStyle), null, buttonStyle);
         button.setText(R.string.backLabel);
@@ -100,35 +101,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             JSONArray litterBinsArray = obj.getJSONArray("features");
             JSONArray coordinate;
 
-            // adds operating location
             for(int i = 0; i < litterBinsArray.length(); i++) {
-                String location = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("OPERATING_LOCATION");
-                String id = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("FACILITYID");
-                String type = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("CONTAINER_TYPE2");
-                //System.out.println(location);
-                if(location.equals("null")) {
-                    location = litterBinsArray.getJSONObject(i).getJSONObject("properties").getString("DESCRIPTION");
-                    //System.out.println(location);
-                    if(location.equals("null") || location.equals("RDS-MAINT")) {
-                        location = type;
-                        //System.out.println(location);
-                        if(location.equals("null")) {
-                            location = id;
-                            //System.out.println(location);
+                JSONObject currentBinProperties = litterBinsArray.getJSONObject(i).getJSONObject("properties");
+                String id = currentBinProperties.getString("FACILITYID");
+                String type = currentBinProperties.getString("CONTAINER_TYPE2");
+
+                // Creates bin title. Sets it to operating location if it exists, or description if that exists, or container type if that exists,
+                // or finally the facility id since that is the only non-null attribute among all json entries.
+                String binTitle = currentBinProperties.getString("OPERATING_LOCATION");
+                if(binTitle.equals("null")) {
+                    binTitle = currentBinProperties.getString("DESCRIPTION");
+                    if(binTitle.equals("null") || binTitle.equals("RDS-MAINT")) {
+                        binTitle = type;
+                        if(binTitle.equals("null")) {
+                            binTitle = id;
                         }
                     }
                 }
-//
+
                 coordinate = litterBinsArray.getJSONObject(i).getJSONObject("geometry").getJSONArray("coordinates");
                 UTM2Deg degs = new UTM2Deg("10 N " + coordinate.getDouble(0) + " " + coordinate.getDouble(1));
 
-                Bin bin = new Bin(degs.latitude, degs.longitude, id, location, type, "Rating: ");
+                Bin bin = new Bin(degs.latitude, degs.longitude, id, binTitle, type, "Rating: N/A");
                 binList.add(bin);
                 binMap.put(id, bin);
-            }
-
-            // adds lat/long for all points within JSON
-            for (int i = 0; i < litterBinsArray.length(); i++) {
             }
         } catch (final JSONException e) {
             Log.e(TAG, "Json parsing error: " + e.getMessage());
@@ -152,21 +148,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 ratingsMap.clear();
                 mClusterManager.clearItems();
+
+                //Rebuilds the known ratings for all entries in the firebase database
                 for(DataSnapshot ratingsSnapshot : dataSnapshot.getChildren()) {
                     TrashCanRating ratingObject = ratingsSnapshot.getValue(TrashCanRating.class);
                     ratingsMap.put(ratingObject.getFacilityid(), ratingObject);
                 }
+
+                //Updates all of the Bin objects Rating attributes with the new data from
+                //the database and re-adds them to the cluster manager
                 for (Bin bin : binList) {
                     if(ratingsMap.containsKey(bin.getFacilityId())) {
                         int rating = ratingsMap.get(bin.getFacilityId()).getRating();
-                        bin.setmSnippet("Rating: " + rating);
+                        bin.setRating("Rating: " + rating);
                     } else {
-                        bin.setmSnippet("Rating: N/A");
+                        bin.setRating("Rating: N/A");
                     }
                     mClusterManager.addItem(bin);
                 }
                 mClusterManager.cluster();
 
+                //Refreshes the info window of the currently selected marker if data changes while
+                //the info window is open
                 if(currentMarker != null && currentMarker.isInfoWindowShown()) {
                     currentMarker.showInfoWindow();
                 }
@@ -262,6 +265,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mClusterManager.setRenderer(mClusterRenderer);
         mMap.setOnCameraIdleListener(mClusterManager);
         mMap.setOnMarkerClickListener(mClusterManager.getMarkerManager());
+
+        //Creates a click listener for the current location marker in order to suppress its info window
+        //and pop-up window behavior
         normalMarkers = mClusterManager.getMarkerManager().newCollection();
         normalMarkers.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
@@ -272,7 +278,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mClusterManager.setOnClusterItemClickListener(new ClusterManager.OnClusterItemClickListener<Bin>() {
             @Override
             public boolean onClusterItemClick(Bin bin) {
-                showUpdateDialog(bin.getFacilityId());
+                showRatingPopup(bin.getFacilityId());
                 return false;
             }
         });
@@ -286,6 +292,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Location lastKnownLocation = getLastKnownLocation();
         addMarker2Map(lastKnownLocation);
+
 //        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 //            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
 //            lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -349,8 +356,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void showUpdateDialog(final String facilityid) {
-
+    //Opens a rating pop-up window for the currently selected marker at the bottom of the map window.
+    private void showRatingPopup(final String facilityId) {
         LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);;
 
         final View popupView = inflater.inflate(R.layout.rating_dialog, null);
@@ -361,7 +368,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnGoodRating.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                updateRating(facilityid, 1);
+                updateRating(facilityId, 1);
 
                 popupWindow.dismiss();
             }
@@ -371,12 +378,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnBadRating.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                updateRating(facilityid, -1);
+                updateRating(facilityId, -1);
 
                 popupWindow.dismiss();
             }
         });
 
+        //Allows other markers on the map to be clicked without first dismissing the existing pop-up window.
         popupWindow.setBackgroundDrawable(new ColorDrawable());
         popupWindow.setOutsideTouchable(true);
 
@@ -392,21 +400,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    private void updateRating(String facilityid, int modifier) {
+    //Updates the TrashCanRating object if it exists or creates a new one and stores it in the firebase collection
+    private void updateRating(String facilityId, int modifier) {
         TrashCanRating newRating;
         DatabaseReference dbRef;
 
-        if(ratingsMap.containsKey(facilityid)) {
-            TrashCanRating curRating = ratingsMap.get(facilityid);
+        if(ratingsMap.containsKey(facilityId)) {
+            TrashCanRating curRating = ratingsMap.get(facilityId);
             dbRef = ratingsDatabase.child(curRating.getId());
 
-            newRating = new TrashCanRating(curRating.getId(), facilityid, curRating.getRating() + modifier, curRating.getLocation());
+            newRating = new TrashCanRating(curRating.getId(), facilityId, curRating.getRating() + modifier, curRating.getLocation());
 
         } else {
             String id = ratingsDatabase.push().getKey();
             dbRef = ratingsDatabase.child(id);
 
-            newRating = new TrashCanRating(id, facilityid, modifier, binMap.get(facilityid).getTitle());
+            newRating = new TrashCanRating(id, facilityId, modifier, binMap.get(facilityId).getTitle());
         }
 
         Task setValueTask = dbRef.setValue(newRating);
@@ -466,10 +475,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    // Custom InfoWindowAdapter that uses the trash_info_contents layout file to
+    // create the info window that appears when a user clicks on any of the markers
     private class TrashCanInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
-
-        // These are both viewgroups containing an ImageView with id "badge" and two TextViews with id
-        // "title" and "snippet".
 
         private final View mContents;
 
@@ -491,40 +499,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         private void render(Marker marker, View view) {
             currentMarker = marker;
 
+            //Retrieves the Bin object that corresponds to the marker based on the facilityId
+            //stored in the marker title
             String id = marker.getTitle();
-
             Bin bin = binMap.get(id);
+
             String title = bin.getTitle();
             TextView titleUi = view.findViewById(R.id.title);
             if (title != null) {
-                // Spannable string allows us to edit the formatting of the text.
-                // SpannableString titleText = new SpannableString(title);
-                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
                 titleUi.setText(title);
             } else {
-                titleUi.setText("");
+                titleUi.setText("N/A");
             }
 
             String type = bin.getContainerType();
             TextView typeUi = view.findViewById(R.id.type);
             if (type != null) {
-                // Spannable string allows us to edit the formatting of the text.
-                // SpannableString titleText = new SpannableString(title);
-                // titleText.setSpan(new ForegroundColorSpan(Color.RED), 0, titleText.length(), 0);
                 typeUi.setText(type);
             } else {
                 typeUi.setText("N/A");
             }
 
-            String snippet = bin.getSnippet();
-            TextView snippetUi = view.findViewById(R.id.snippet);
-            if (snippet != null) {
-                //SpannableString snippetText = new SpannableString(snippet);
-                //snippetText.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, 10, 0);
-                //snippetText.setSpan(new ForegroundColorSpan(Color.BLUE), 12, snippet.length(), 0);
-                snippetUi.setText(snippet);
+            String rating = bin.getRating();
+            TextView snippetUi = view.findViewById(R.id.location);
+            if (rating != null) {
+                snippetUi.setText(rating);
             } else {
-                snippetUi.setText("");
+                snippetUi.setText("N/A");
             }
         }
     }
